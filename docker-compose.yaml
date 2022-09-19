@@ -1,0 +1,10 @@
+version: "3"
+services:
+  szpp-slack-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: szpp-slack-bot
+    env_file: .env
+    ports:
+      - "8080:8080"
