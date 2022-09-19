@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/slack-go/slack"
 )
@@ -31,8 +30,13 @@ func (s *SlashHandler) RegisterSubHandlers(executors ...CommandExecutor) {
 func (s *SlashHandler) Handle(rw http.ResponseWriter, slashCmd *slack.SlashCommand) {
 	fmt.Println(slashCmd.Text)
 
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	// 打ったコマンドを表示させる
+	msg := &slack.Msg{ResponseType: slack.ResponseTypeInChannel}
+	_ = json.NewEncoder(rw).Encode(msg)
+
 	go func() {
-		time.Sleep(500 * time.Millisecond)
 		for _, executor := range s.executors {
 			if executor.Name() == slashCmd.Text {
 				if err := executor.Handle(slashCmd); err != nil {
@@ -44,10 +48,4 @@ func (s *SlashHandler) Handle(rw http.ResponseWriter, slashCmd *slack.SlashComma
 			}
 		}
 	}()
-
-	rw.Header().Add("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	// 打ったコマンドを表示させる
-	msg := &slack.Msg{ResponseType: slack.ResponseTypeInChannel}
-	_ = json.NewEncoder(rw).Encode(msg)
 }
