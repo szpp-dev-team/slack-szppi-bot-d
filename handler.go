@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/slack-go/slack"
 )
@@ -28,7 +28,8 @@ func (s *SlashHandler) RegisterSubHandlers(executors ...CommandExecutor) {
 }
 
 func (s *SlashHandler) Handle(rw http.ResponseWriter, slashCmd *slack.SlashCommand) {
-	fmt.Println(slashCmd.Text)
+	tokens := strings.Fields(slashCmd.Text)
+	// TODO: show help if the length of tokens is 0
 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
@@ -37,11 +38,11 @@ func (s *SlashHandler) Handle(rw http.ResponseWriter, slashCmd *slack.SlashComma
 	_ = json.NewEncoder(rw).Encode(msg)
 
 	go func() {
+		subcommand := tokens[0]
 		for _, executor := range s.executors {
-			if executor.Name() == slashCmd.Text {
+			if executor.Name() == subcommand {
 				if err := executor.Handle(slashCmd); err != nil {
 					log.Println(err)
-					http.Error(rw, err.Error(), http.StatusInternalServerError)
 					return
 				}
 				break
