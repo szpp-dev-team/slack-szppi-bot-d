@@ -33,6 +33,9 @@ func (o *SubHandlerImage) Handle(slashCmd *slack.SlashCommand) error {
 	if len(resp.Items) == 0 {
 		return errors.New("the length of resp.Items must be greater than 0")
 	}
+	for _, item := range resp.Items {
+		log.Println(item.Link)
+	}
 
 	hresp, err := http.Get(resp.Items[0].Link)
 	if err != nil {
