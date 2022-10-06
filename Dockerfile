@@ -6,9 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN GOOS=linux \
-    GOARCH=amd64 \
-    go build -o app .
+RUN go build -o app .
 
 FROM ubuntu:22.04
 
