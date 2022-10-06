@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -9,19 +10,28 @@ import (
 
 	"github.com/slack-go/slack"
 	"github.com/szpp-dev-team/szpp-slack-bot/commands"
+	"google.golang.org/api/customsearch/v1"
+	"google.golang.org/api/option"
 )
 
 func main() {
 	botUserOauthToken := os.Getenv("BOT_USER_OAUTH_TOKEN")
 	signingSecret := os.Getenv("SIGNING_SECRET")
+	customsearchApiKey := os.Getenv("CUSTOM_SEARCH_API_KEY")
+
 	port := getenvOr("PORT", "8080")
 
 	client := slack.New(botUserOauthToken)
+	customsearchService, err := customsearch.NewService(context.Background(), option.WithAPIKey(customsearchApiKey))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	slashHandler := NewSlashHandler(client)
 	// カスタムコマンドの追加はここで行う(インスタンスを引数に渡せばおk)
 	slashHandler.RegisterSubHandlers(
 		commands.NewSubHandlerOmikuji(client),
+		commands.NewSubHandlerImage(client, customsearchService),
 	)
 
 	http.HandleFunc("/slack/events", func(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +57,7 @@ func main() {
 		}
 
 		switch slashCmd.Command {
-		case "/szppi":
+		case "/szppi", "/szppi-test":
 			slashHandler.Handle(w, &slashCmd)
 		default:
 			log.Println("no such slash command", slashCmd.Command)
