@@ -56,14 +56,7 @@ func main() {
 			return
 		}
 
-		switch slashCmd.Command {
-		case "/szppi", "/szppi-test":
-			slashHandler.Handle(w, &slashCmd)
-		default:
-			log.Println("no such slash command", slashCmd.Command)
-			http.Error(w, "no such slash command "+slashCmd.Command, http.StatusBadRequest)
-			return
-		}
+		slashHandler.Handle(w, &slashCmd)
 	})
 
 	if err := http.ListenAndServe(fmt.Sprintf(":%v", port), nil); err != nil {
