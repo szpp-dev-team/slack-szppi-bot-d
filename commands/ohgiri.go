@@ -2,6 +2,8 @@ package commands
 
 import (
 	"encoding/json"
+	"log"
+	"os"
 
 	"github.com/slack-go/slack"
 )
@@ -13,7 +15,6 @@ type Ohgiri struct {
 
 type SubHandlerOhgiri struct {
 	c       *slack.Client
-	n       int32
 	ohgiris *[]Ohgiri
 	cursor  int
 }
@@ -21,9 +22,9 @@ type SubHandlerOhgiri struct {
 func NewSubHandlerOhgiri(c *slack.Client) *SubHandlerOhgiri {
 	o, err := loadOhgiris()
 	if err != nil {
-		// error handling
+		log.Fatalln("failed to load JSON datbase:", err)
 	}
-	return &SubHandlerOhgiri{c, 0, o, 0}
+	return &SubHandlerOhgiri{c, o, 0}
 }
 
 func (o *SubHandlerOhgiri) Name() string {
@@ -54,20 +55,20 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 }
 
 func loadOhgiris() (*[]Ohgiri, error) {
-	//content, err := ioutil.ReadFile("ohgiris.json")
-	//if err != nil {
-	//	return nil, err
-	//}
+	content, err := os.ReadFile("data/ohgiris.json")
+	if err != nil {
+		return nil, err
+	}
 
-	content := []byte(`[
-	{"odai": "odai1", "kotae": "kotae1"},
-	{"odai": "odai2", "kotae": "kotae2"},
-	{"odai": "odai3", "kotae": "kotae3"},
-	{"odai": "odai4", "kotae": "kotae4"},
-	{"odai": "odai5", "kotae": "kotae5"}
-]`)
+	//	content := []byte(`[
+	//	{"odai": "odai1", "kotae": "kotae1"},
+	//	{"odai": "odai2", "kotae": "kotae2"},
+	//	{"odai": "odai3", "kotae": "kotae3"},
+	//	{"odai": "odai4", "kotae": "kotae4"},
+	//	{"odai": "odai5", "kotae": "kotae5"}
+	//]`)
 	o := []Ohgiri{}
-	err := json.Unmarshal(content, &o)
+	err = json.Unmarshal(content, &o)
 	if err != nil {
 		return nil, err
 	}
