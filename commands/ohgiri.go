@@ -91,8 +91,8 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 		}
 
 	} else { //回答が存在する場合
-		winners := chooseWinner(threadMessage)
-		if isWinnerEmpty(winners) { //投票がなかった場合
+		winners := chooseWinner(threadMessage) //優勝者のリスト(Winnerの構造体のスライス)
+		if isWinnerEmpty(winners) {            //投票がなかった場合
 			sendMessageText := "投票がなかったっぴ！\n｡ﾟ(ﾟஇωஇﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
 			msgBlock := []slack.Block{
 				slack.NewSectionBlock(
@@ -182,10 +182,10 @@ func isWinnerEmpty(winner []Winner) bool {
 }
 
 func chooseWinner(threadMessage []slack.Message) []Winner {
-	winners := []Winner{}
-	reactionCount := 0
-	winnerIndex := 0
-	reactionUserSet := hashset.New()
+	winners := []Winner{}            //優勝者のリスト
+	reactionCount := 0               //ループ単位(一つの大喜利回答)あたりのリアクション人数
+	winnerIndex := 0                 //優勝者の数(ループで変動あり)
+	reactionUserSet := hashset.New() //リアクション数によらずリアクションした人で判別するためのセット　一ループごとclear
 
 	for _, msg := range threadMessage {
 		if msg.Reactions != nil {
