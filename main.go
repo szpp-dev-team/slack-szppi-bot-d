@@ -32,6 +32,7 @@ func main() {
 	slashHandler.RegisterSubHandlers(
 		commands.NewSubHandlerOmikuji(client),
 		//		commands.NewSubHandlerImage(client, customsearchService),
+		commands.NewSubHandlerOhgiri(client),
 	)
 
 	http.HandleFunc("/slack/events", func(w http.ResponseWriter, r *http.Request) {
