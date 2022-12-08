@@ -69,29 +69,23 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 	if err != nil {
 		log.Fatalln("faild", err)
 	}
-
-	winners := chooseWinner(threadMessage)
-
-	if isWinnerEmpty(winners) { //投票がなかった場合
-		KotaeText := "投票がなかったっぴ！ちなみに模範解答はこれっぴ!\n*「" + ohgiri.Kotae + "」*\n"
-		Kotaeblocks := []slack.Block{
-			slack.NewSectionBlock(
-				slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
-				nil,
-				nil,
-			),
+	if len(threadMessage) <= 1{
+		KotaeText := "誰も回答してくれなかったっぴ\n｡ﾟ(ﾟ＾ω＾ﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
+			Kotaeblocks := []slack.Block{
+				slack.NewSectionBlock(
+					slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
+					nil,
+					nil,
+				),
 		}
 		_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
-		if err != nil {
-			log.Fatalln("errdesu")
+		if err != nil{
+			log.Fatalf("error", err)
 		}
 	} else {
-		if len(winners) == 1 { //優勝者が一人だった場合
-			user, err := o.c.GetUserInfo(winners[0].UserName)
-			if err != nil {
-				log.Fatalln("error", err)
-			}
-			KotaeText := "この回答が一番おもしろかったっぴ!\n" + user.Profile.DisplayName + " 作 *「" + winners[0].Kaitou + "」*"
+		winners := chooseWinner(threadMessage)
+		if isWinnerEmpty(winners) { //投票がなかった場合
+			KotaeText := "投票がなかったっぴ！\n｡ﾟ(ﾟஇωஇﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
 			Kotaeblocks := []slack.Block{
 				slack.NewSectionBlock(
 					slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
@@ -99,29 +93,49 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 					nil,
 				),
 			}
-			_, _, err = o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
-			if err != nil {
-				log.Fatalln("errdesu")
-			}
-		} else { //優勝者が複数いた場合
-			KotaeText := []string{}
-			for _, winner := range winners {
-				user, err := o.c.GetUserInfo(winner.UserName)
-				if err != nil {
-					log.Fatalln("erreesu", err)
-				}
-				KotaeText = append(KotaeText, user.Profile.DisplayName+" 作 *「"+winner.Kaitou+"」*")
-			}
-
-			Kotaeblocks := []slack.Block{slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", "面白すぎて一つに決められなかったっぴ！！", false, false), nil, nil)}
-			Kotaeblocks = append(Kotaeblocks, slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", strings.Join(KotaeText, "\n"), false, false), nil, nil))
-
 			_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
 			if err != nil {
 				log.Fatalln("errdesu")
 			}
+		} else {
+			if len(winners) == 1 { //優勝者が一人だった場合
+				user, err := o.c.GetUserInfo(winners[0].UserName)
+				if err != nil {
+					log.Fatalln("error", err)
+				}
+				KotaeText := "この回答が一番おもしろかったっぴ！\n( ･`ω･´)\n" + user.Profile.DisplayName + " 作 *「" + winners[0].Kaitou + "」*"
+				Kotaeblocks := []slack.Block{
+					slack.NewSectionBlock(
+						slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
+						nil,
+						nil,
+					),
+				}
+				_, _, err = o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
+				if err != nil {
+					log.Fatalln("errdesu")
+				}
+			} else { //優勝者が複数いた場合
+				KotaeText := []string{}
+				for _, winner := range winners {
+					user, err := o.c.GetUserInfo(winner.UserName)
+					if err != nil {
+						log.Fatalln("erreesu", err)
+					}
+					KotaeText = append(KotaeText, user.Profile.DisplayName+" 作 *「"+winner.Kaitou+"」*")
+				}
+	
+				Kotaeblocks := []slack.Block{slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", "面白すぎて一つに決められなかったっぴ！\nΣ( ˙꒳˙ ;)", false, false), nil, nil)}
+				Kotaeblocks = append(Kotaeblocks, slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", strings.Join(KotaeText, "\n"), false, false), nil, nil))
+	
+				_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
+				if err != nil {
+					log.Fatalln("errdesu")
+				}
+			}
 		}
 	}
+
 	return err
 }
 
