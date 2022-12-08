@@ -2,6 +2,7 @@ package main
 
 import (
 	//	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -58,6 +59,27 @@ func main() {
 		}
 
 		slashHandler.Handle(w, &slashCmd)
+	})
+
+	http.HandleFunc("/slack/actions", func(w http.ResponseWriter, r *http.Request) {
+		var payload slack.InteractionCallback
+		err := json.Unmarshal([]byte(r.FormValue("payload")), &payload)
+		if err != nil {
+			log.Println("Could not parse action response JSON:", err)
+			http.Error(w, "Could not parse action responseJSON", http.StatusBadRequest)
+			return
+		}
+		switch payload.Type {
+		case slack.InteractionTypeBlockActions:
+			for _, v := range payload.ActionCallback.BlockActions {
+				log.Println("ActionID:", v.ActionID)
+				// TODO: このあと ActionID ごとにハンドリングする close_button, cancel_button
+			}
+			return
+		default:
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 	})
 
 	if err := http.ListenAndServe(fmt.Sprintf(":%v", port), nil); err != nil {
