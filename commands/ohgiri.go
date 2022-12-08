@@ -7,12 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/slack-go/slack"
 )
 
 type Winner struct {
 	Kaitou    string
-	UserName  string
+	Name      string
 	Reactions int
 }
 
@@ -30,7 +31,7 @@ type SubHandlerOhgiri struct {
 func NewSubHandlerOhgiri(c *slack.Client) *SubHandlerOhgiri {
 	o, err := loadOhgiris()
 	if err != nil {
-		log.Fatalln("failed to load JSON datbase:", err)
+		log.Print(err)
 	}
 	return &SubHandlerOhgiri{c, o, 0}
 }
@@ -40,6 +41,7 @@ func (o *SubHandlerOhgiri) Name() string {
 }
 
 func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
+	//お題生成部
 	ohgiri := (*o.ohgiris)[o.cursor]
 	odaiText := "*「" + ohgiri.Odai + "」*\n答えを思いついたらスレッドに書くっぴ！"
 	o.cursor++
@@ -52,85 +54,96 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 			nil,
 			nil,
 		),
-		slack.NewActionBlock(
+		/*slack.NewActionBlock(
 			"button_group",
 			slack.NewButtonBlockElement("close_button", "", slack.NewTextBlockObject("plain_text", "回答締切", false, false)).WithStyle(slack.StylePrimary),
 			slack.NewButtonBlockElement("cancel_button", "", slack.NewTextBlockObject("plain_text", "やめる", false, false)).WithStyle(slack.StyleDanger),
-		),
+		),*/
 	}
-
 	messageChannelID, messageTimestamp, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(blocks...), slack.MsgOptionText("お題を発表するっぴ！", false))
 	if err != nil {
-		log.Fatalln("failed to post message.", err)
+		log.Print(err)
+		return err
 	}
 
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 180) //今は仮で時間制にしている
+
+	//回答集計部 + 出力部
 	threadMessage, _, _, err := o.c.GetConversationReplies(&slack.GetConversationRepliesParameters{ChannelID: messageChannelID, Timestamp: messageTimestamp})
 	if err != nil {
-		log.Fatalln("faild", err)
+		log.Print(err)
+		return err
 	}
-	if len(threadMessage) <= 1{
-		KotaeText := "誰も回答してくれなかったっぴ\n｡ﾟ(ﾟ＾ω＾ﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
-			Kotaeblocks := []slack.Block{
-				slack.NewSectionBlock(
-					slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
-					nil,
-					nil,
-				),
+
+	if len(threadMessage) <= 1 { //回答した人がいなかった場合(botからの初期メッセージがあるのでパラメータは1以下の時)
+		sendMessageText := "誰も回答してくれなかったっぴ\n｡ﾟ(ﾟ＾ω＾ﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
+		msgBlock := []slack.Block{
+			slack.NewSectionBlock(
+				slack.NewTextBlockObject("mrkdwn", sendMessageText, false, false),
+				nil,
+				nil,
+			),
 		}
-		_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
-		if err != nil{
-			log.Fatalf("error", err)
+		_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(msgBlock...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
+		if err != nil {
+			log.Print(err)
+			return err
 		}
-	} else {
+
+	} else { //回答が存在する場合
 		winners := chooseWinner(threadMessage)
 		if isWinnerEmpty(winners) { //投票がなかった場合
-			KotaeText := "投票がなかったっぴ！\n｡ﾟ(ﾟஇωஇﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
-			Kotaeblocks := []slack.Block{
+			sendMessageText := "投票がなかったっぴ！\n｡ﾟ(ﾟஇωஇﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
+			msgBlock := []slack.Block{
 				slack.NewSectionBlock(
-					slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
+					slack.NewTextBlockObject("mrkdwn", sendMessageText, false, false),
 					nil,
 					nil,
 				),
 			}
-			_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
+			_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(msgBlock...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
 			if err != nil {
-				log.Fatalln("errdesu")
+				log.Print(err)
+				return err
 			}
 		} else {
 			if len(winners) == 1 { //優勝者が一人だった場合
-				user, err := o.c.GetUserInfo(winners[0].UserName)
+				userInfo, err := o.c.GetUserInfo(winners[0].Name)
 				if err != nil {
-					log.Fatalln("error", err)
+					log.Print(err)
+					return err
 				}
-				KotaeText := "この回答が一番おもしろかったっぴ！\n( ･`ω･´)\n" + user.Profile.DisplayName + " 作 *「" + winners[0].Kaitou + "」*"
-				Kotaeblocks := []slack.Block{
+				sendMessageText := "この回答が一番おもしろかったっぴ！\n( ･`ω･´)\n" + userInfo.Profile.DisplayName + " 作 *「" + winners[0].Kaitou + "」*"
+				msgBlock := []slack.Block{
 					slack.NewSectionBlock(
-						slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
+						slack.NewTextBlockObject("mrkdwn", sendMessageText, false, false),
 						nil,
 						nil,
 					),
 				}
-				_, _, err = o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
+				_, _, err = o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(msgBlock...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
 				if err != nil {
-					log.Fatalln("errdesu")
+					log.Print(err)
+					return err
 				}
 			} else { //優勝者が複数いた場合
-				KotaeText := []string{}
+				sendMessageText := []string{}
 				for _, winner := range winners {
-					user, err := o.c.GetUserInfo(winner.UserName)
+					userInfo, err := o.c.GetUserInfo(winner.Name)
 					if err != nil {
-						log.Fatalln("erreesu", err)
+						log.Print(err)
+						return err
 					}
-					KotaeText = append(KotaeText, user.Profile.DisplayName+" 作 *「"+winner.Kaitou+"」*")
+					sendMessageText = append(sendMessageText, userInfo.Profile.DisplayName+" 作 *「"+winner.Kaitou+"」*")
 				}
-	
-				Kotaeblocks := []slack.Block{slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", "面白すぎて一つに決められなかったっぴ！\nΣ( ˙꒳˙ ;)", false, false), nil, nil)}
-				Kotaeblocks = append(Kotaeblocks, slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", strings.Join(KotaeText, "\n"), false, false), nil, nil))
-	
-				_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
+
+				msgBlock := []slack.Block{slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", "面白すぎて一つに決められなかったっぴ！\nΣ( ˙꒳˙ ;)", false, false), nil, nil)}
+				msgBlock = append(msgBlock, slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", strings.Join(sendMessageText, "\n"), false, false), nil, nil))
+
+				_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(msgBlock...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
 				if err != nil {
-					log.Fatalln("errdesu")
+					log.Print(err)
+					return err
 				}
 			}
 		}
@@ -171,39 +184,46 @@ func isWinnerEmpty(winner []Winner) bool {
 func chooseWinner(threadMessage []slack.Message) []Winner {
 	winners := []Winner{}
 	reactionCount := 0
-	winnerindex := 0
+	winnerIndex := 0
+	reactionUserSet := hashset.New()
 
 	for _, msg := range threadMessage {
 		if msg.Reactions != nil {
 			for _, reaction := range msg.Reactions {
-				reactionCount += reaction.Count
+				for _, reactionUser := range reaction.Users {
+					if !reactionUserSet.Contains(reactionUser) {
+						reactionUserSet.Add(reactionUser)
+						reactionCount++
+					}
+				}
 			}
 			if !isWinnerEmpty(winners) {
 				if winners[0].Reactions < reactionCount { //もしカウントが多い人がいた場合 -> 配列をクリアして新しく追加
 					winners = []Winner{}
 					winners = append(winners, Winner{
 						Kaitou:    msg.Text,
-						UserName:  msg.User,
+						Name:      msg.User,
 						Reactions: reactionCount,
 					})
-					winnerindex = 1
+					winnerIndex = 1
 				} else if winners[0].Reactions == reactionCount { //カウントが一緒なら -> 配列に追加
 					winners = append(winners, Winner{
 						Kaitou:    msg.Text,
-						UserName:  msg.User,
+						Name:      msg.User,
 						Reactions: reactionCount,
 					})
-					winnerindex += 1
+					winnerIndex++
 				}
 			} else { //最初は無条件追加
 				winners = append(winners, Winner{
 					Kaitou:    msg.Text,
-					UserName:  msg.User,
+					Name:      msg.User,
 					Reactions: reactionCount,
 				})
-				winnerindex = 1
+				winnerIndex = 1
 			}
 		}
+		reactionUserSet.Clear()
 		reactionCount = 0
 	}
 	return winners

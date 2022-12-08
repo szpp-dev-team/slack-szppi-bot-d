@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/slack-go/slack v0.11.3
+	github.com/emirpasic/gods v1.18.1
 	google.golang.org/api v0.98.0
 )
 
