@@ -69,18 +69,19 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 	if err != nil {
 		log.Fatalln("faild", err)
 	}
-	if len(threadMessage) <= 1{
+	if len(threadMessage) <= 1 {
 		KotaeText := "誰も回答してくれなかったっぴ\n｡ﾟ(ﾟ＾ω＾ﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
-			Kotaeblocks := []slack.Block{
-				slack.NewSectionBlock(
-					slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
-					nil,
-					nil,
-				),
+		Kotaeblocks := []slack.Block{
+			slack.NewSectionBlock(
+				slack.NewTextBlockObject("mrkdwn", KotaeText, false, false),
+				nil,
+				nil,
+			),
 		}
 		_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
-		if err != nil{
-			log.Fatalf("error", err)
+		if err != nil {
+			log.Print("error", err)
+			return err
 		}
 	} else {
 		winners := chooseWinner(threadMessage)
@@ -124,10 +125,10 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 					}
 					KotaeText = append(KotaeText, user.Profile.DisplayName+" 作 *「"+winner.Kaitou+"」*")
 				}
-	
+
 				Kotaeblocks := []slack.Block{slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", "面白すぎて一つに決められなかったっぴ！\nΣ( ˙꒳˙ ;)", false, false), nil, nil)}
 				Kotaeblocks = append(Kotaeblocks, slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", strings.Join(KotaeText, "\n"), false, false), nil, nil))
-	
+
 				_, _, err := o.c.PostMessage(slashCmd.ChannelID, slack.MsgOptionBlocks(Kotaeblocks...), slack.MsgOptionTS(messageTimestamp), slack.MsgOptionText("結果発表〜〜〜！！", false))
 				if err != nil {
 					log.Fatalln("errdesu")
