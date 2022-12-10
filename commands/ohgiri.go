@@ -42,8 +42,20 @@ func (o *SubHandlerOhgiri) Name() string {
 
 func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 	//お題生成部
+	var odaiText string
+	var isUsersOdai bool
 	ohgiri := (*o.ohgiris)[o.cursor]
-	odaiText := "*「" + ohgiri.Odai + "」*\n答えを思いついたらスレッドに書くっぴ！"
+	if len(slashCmd.Text) > len("ohgiri") {
+		isUsersOdai = true
+	} else {
+		isUsersOdai = false
+	}
+	if isUsersOdai {
+		odaiText = "*「" + strings.Join(strings.Fields(slashCmd.Text)[1:], "") + "」*\n答えを思いついたらスレッドに書くっぴ！"
+	} else {
+		odaiText = "*「" + ohgiri.Odai + "」*\n答えを思いついたらスレッドに書くっぴ！"
+	}
+
 	o.cursor++
 	if o.cursor >= len(*o.ohgiris) {
 		o.cursor = 0
@@ -66,7 +78,7 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 		return err
 	}
 
-	time.Sleep(time.Second * 180) //今は仮で時間制にしている
+	time.Sleep(time.Second * 10) //今は仮で時間制にしている
 
 	//回答集計部 + 出力部
 	threadMessage, _, _, err := o.c.GetConversationReplies(&slack.GetConversationRepliesParameters{ChannelID: messageChannelID, Timestamp: messageTimestamp})
@@ -76,7 +88,12 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 	}
 
 	if len(threadMessage) <= 1 { //回答した人がいなかった場合(botからの初期メッセージがあるのでパラメータは1以下の時)
-		sendMessageText := "誰も回答してくれなかったっぴ\n｡ﾟ(ﾟ＾ω＾ﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
+		var sendMessageText string
+		if isUsersOdai {
+			sendMessageText = "誰も回答してくれなかったっぴ\n｡ﾟ(ﾟ＾ω＾ﾟ)ﾟ｡\n"
+		} else {
+			sendMessageText = "誰も回答してくれなかったっぴ\n｡ﾟ(ﾟ＾ω＾ﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
+		}
 		msgBlock := []slack.Block{
 			slack.NewSectionBlock(
 				slack.NewTextBlockObject("mrkdwn", sendMessageText, false, false),
@@ -93,7 +110,12 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 	} else { //回答が存在する場合
 		winners := chooseWinner(threadMessage) //優勝者のリスト(Winnerの構造体のスライス)
 		if isWinnerEmpty(winners) {            //投票がなかった場合
-			sendMessageText := "投票がなかったっぴ！\n｡ﾟ(ﾟஇωஇﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
+			var sendMessageText string
+			if isUsersOdai {
+				sendMessageText = "投票がなかったっぴ！\n｡ﾟ(ﾟஇωஇﾟ)ﾟ｡\n"
+			} else {
+				sendMessageText = "投票がなかったっぴ！\n｡ﾟ(ﾟஇωஇﾟ)ﾟ｡\nちなみに模範解答はこれっぴ！\n*「" + ohgiri.Kotae + "」*\n"
+			}
 			msgBlock := []slack.Block{
 				slack.NewSectionBlock(
 					slack.NewTextBlockObject("mrkdwn", sendMessageText, false, false),
