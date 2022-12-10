@@ -78,7 +78,8 @@ func (o *SubHandlerOhgiri) Handle(slashCmd *slack.SlashCommand) error {
 		return err
 	}
 
-	time.Sleep(time.Second * 10) //今は仮で時間制にしている
+	answerLimit := 180
+	time.Sleep(time.Second * time.Duration(answerLimit)) //今は仮で時間制にしている
 
 	//回答集計部 + 出力部
 	threadMessage, _, _, err := o.c.GetConversationReplies(&slack.GetConversationRepliesParameters{ChannelID: messageChannelID, Timestamp: messageTimestamp})
